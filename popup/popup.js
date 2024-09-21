@@ -1,0 +1,1 @@
+console.log("Seismo error monitor extension popup opened");

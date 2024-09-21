@@ -1,0 +1,45 @@
+{
+    "manifest_version": 3,
+    "name": "Seismo",
+    "version": "1.0",
+    "description": "Monitors browser console and network errors and provides detailed notifications.",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "declarativeNetRequest",
+        "declarativeNetRequestFeedback",
+        "notifications"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+          "matches": ["<all_urls>"],
+          "js": ["content_scripts/content.js"],
+          "run_at": "document_start"
+        }
+    ],
+    "web_accessible_resources": [
+    {
+        "resources": ["content_scripts/inject.js"],
+        "matches": ["<all_urls>"]
+    }
+    ],
+    "action": {
+        "default_popup": "popup/popup.html",
+        "default_icon": {
+          "16": "icons/icon16.png",
+          "48": "icons/icon48.png",
+          "128": "icons/icon128.png"
+        }
+      },
+    "icons": {
+        "16": "icons/icon16.png",
+        "48": "icons/icon48.png",
+        "128": "icons/icon128.png"
+    },
+    "host_permissions": [
+        "*://*/*"
+    ]
+}
