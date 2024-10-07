@@ -1,9 +1,22 @@
-chrome.declarativeNetRequest.onRuleMatchedDebug.addListener((info) => {
-    if (info.request.statusCode >= 400) {
-        chrome.tabs.sendMessage(info.request.tabId, {
-            type: "ERROR",
-            message: `An error occurred: ${info.request.statusCode}`,
-            details: info.request
+// background.js
+chrome.webRequest.onCompleted.addListener(
+    (details) => {
+      if (details.statusCode >= 400) {
+        chrome.tabs.get(details.tabId, (tab) => {
+          if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError);
+            return;
+          }
+          if (tab && tab.status === "complete") {
+            chrome.tabs.sendMessage(details.tabId, {
+              type: "NETWORK_ERROR",
+              message: `Network Error: ${details.statusCode}`,
+              details: details
+            });
+          }
         });
-    }
-});
+      }
+    },
+    { urls: ["<all_urls>"] },
+    ["responseHeaders"]
+  );
