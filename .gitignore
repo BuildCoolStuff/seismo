@@ -1,0 +1,25 @@
+# VS Code workspace files
+*.code-workspace
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Extension build files
+dist/
+build/
+*.zip
+
+# Node modules (if you add them later)
+node_modules/
+package-lock.json
+
+# Environment files
+.env
+.env.local
