@@ -12,7 +12,6 @@ class SeismoToast {
   }
 
   ensureInitialized() {
-    // Wait for document.body to be available
     if (document.body) {
       this.initialize();
     } else {
@@ -62,6 +61,10 @@ class SeismoToast {
           overflow: hidden;
         }
 
+        .seismo-toast:hover .seismo-progress-bar::after {
+          animation-play-state: paused;
+        }
+
         .seismo-progress-bar {
           position: absolute;
           bottom: 0;
@@ -79,7 +82,34 @@ class SeismoToast {
           height: 100%;
           width: 100%;
           background-color: rgba(255, 255, 255, 0.7);
-          animation: seismo-progress 5s linear forwards; /* Match this with your toast duration */
+          animation: seismo-progress 5s linear forwards;
+        }
+
+        .seismo-close-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.8);
+          cursor: pointer;
+          padding: 4px;
+          line-height: 1;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s;
+        }
+
+        .seismo-close-btn:hover {
+          background: rgba(255, 255, 255, 0.1);
+          color: white;
+        }
+
+        .seismo-close-btn svg {
+          width: 16px;
+          height: 16px;
         }
 
         @keyframes seismo-progress {
@@ -159,6 +189,7 @@ class SeismoToast {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 8px;
+          padding-right: 24px;
         }
 
         .seismo-settings-btn {
@@ -186,14 +217,12 @@ class SeismoToast {
         }
       `;
       
-      // Handle both head and body being potentially unavailable
       const appendStyle = () => {
         if (document.head) {
           document.head.appendChild(style);
         } else if (document.body) {
           document.body.appendChild(style);
         } else {
-          // If neither is available, try again shortly
           setTimeout(appendStyle, 100);
         }
       };
@@ -203,7 +232,6 @@ class SeismoToast {
   }
 
   show(errCode, description, url, time, action) {
-    // Ensure container exists
     this.ensureInitialized();
     
     const container = document.getElementById(this.containerId);
@@ -215,7 +243,6 @@ class SeismoToast {
 
     const toast = document.createElement('div');
     
-    // Determine toast type based on error code
     let toastType = 'error';
     if (errCode.includes('500')) {
       toastType = 'server';
@@ -227,31 +254,36 @@ class SeismoToast {
     const hostname = window.location.hostname;
     
     toast.innerHTML = `
-    <div class="seismo-toast-header">
-      <div class="seismo-toast-content">
-        <strong>Time:</strong> <span class="wrap-text">${time}</span>
-      </div>
-      <button class="seismo-settings-btn" data-hostname="${hostname}">
+      <button class="seismo-close-btn">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 15l-3-3h6l-3 3z"/>
+          <path d="M18 6L6 18M6 6l12 12"/>
         </svg>
-        Exclude Site
       </button>
-    </div>
-    <div class="seismo-toast-content">
-      <strong>Error Code:</strong> <span class="wrap-text">${errCode}</span>
-    </div>
-    <div class="seismo-toast-content">
-      <strong>Description:</strong> <span class="wrap-text">${description}</span>
-    </div>
-    <div class="seismo-toast-content">
-      <strong>URL:</strong> <span class="wrap-text">${url}</span>
-    </div>
-    <div class="seismo-toast-content">
-      <strong>Action:</strong> <span class="wrap-text">${action}</span>
-    </div>
-    <div class="seismo-progress-bar"></div>
-  `;
+      <div class="seismo-toast-header">
+        <div class="seismo-toast-content">
+          <strong>Time:</strong> <span class="wrap-text">${time}</span>
+        </div>
+        <button class="seismo-settings-btn" data-hostname="${hostname}">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 15l-3-3h6l-3 3z"/>
+          </svg>
+          Exclude Site
+        </button>
+      </div>
+      <div class="seismo-toast-content">
+        <strong>Error Code:</strong> <span class="wrap-text">${errCode}</span>
+      </div>
+      <div class="seismo-toast-content">
+        <strong>Description:</strong> <span class="wrap-text">${description}</span>
+      </div>
+      <div class="seismo-toast-content">
+        <strong>URL:</strong> <span class="wrap-text">${url}</span>
+      </div>
+      <div class="seismo-toast-content">
+        <strong>Action:</strong> <span class="wrap-text">${action}</span>
+      </div>
+      <div class="seismo-progress-bar"></div>
+    `;
 
     // Add click handler for the exclude button
     const excludeBtn = toast.querySelector('.seismo-settings-btn');
@@ -262,42 +294,115 @@ class SeismoToast {
       toast.classList.add('removing');
     });
 
+    // Add click handler for the close button
+    const closeBtn = toast.querySelector('.seismo-close-btn');
+    closeBtn.addEventListener('click', () => {
+      removeToast();
+    });
+
     container.appendChild(toast);
 
-    // Remove the toast after 5 seconds with animation
-    setTimeout(() => {
-      toast.classList.add('removing');
-      toast.addEventListener('animationend', () => {
-        if (container.contains(toast)) {
-          container.removeChild(toast);
+    // Initialize toast removal handler
+    const removeToast = () => {
+      if (container.contains(toast)) {
+        toast.classList.add('removing');
+        toast.addEventListener('animationend', () => {
+          if (container.contains(toast)) {
+            container.removeChild(toast);
+          }
+        });
+      }
+    };
+
+    // Handle toast timeout and hover pause
+    const TOTAL_TIME = 5000; // 5 seconds
+    let startTime = Date.now();
+    let timeoutId = null;
+    let remainingTime = TOTAL_TIME;
+    let progressInterval = null;
+
+    const updateProgressBar = () => {
+      const progressBar = toast.querySelector('.seismo-progress-bar::after');
+      if (progressBar) {
+        const progress = 1 - (remainingTime / TOTAL_TIME);
+        progressBar.style.transform = `scaleX(${1 - progress})`;
+      }
+    };
+
+    const startTimer = () => {
+      startTime = Date.now();
+      
+      // Clear any existing intervals/timeouts
+      if (timeoutId) clearTimeout(timeoutId);
+      if (progressInterval) clearInterval(progressInterval);
+      
+      // Set up the removal timeout
+      timeoutId = setTimeout(removeToast, remainingTime);
+
+      // Set up progress bar updates
+      progressInterval = setInterval(() => {
+        remainingTime = Math.max(0, remainingTime - 100);
+        updateProgressBar();
+        if (remainingTime <= 0) {
+          clearInterval(progressInterval);
         }
-      });
-    }, 5000);
+      }, 100);
+    };
+
+    const pauseTimer = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+      if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+      }
+      const elapsedTime = Date.now() - startTime;
+      remainingTime = Math.max(0, remainingTime - elapsedTime);
+    };
+
+    // Start initial timer
+    startTimer();
+
+    // Pause timer on hover
+    toast.addEventListener('mouseenter', () => {
+      pauseTimer();
+    });
+
+    // Resume timer when mouse leaves
+    toast.addEventListener('mouseleave', () => {
+      if (remainingTime > 0) {
+        startTimer();
+      }
+    });
+
+    // Clear timeout if toast is manually closed
+    closeBtn.addEventListener('click', () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (progressInterval) clearInterval(progressInterval);
+    });
 
     return toast;
   }
 
-  // Add this method to SeismoToast class
-async excludeSite(hostname) {
-  try {
-    // Get current excluded sites
-    const result = await chrome.storage.sync.get('excludedSites');
-    const excludedSites = result.excludedSites || [];
-    
-    // Add new site if not already excluded
-    if (!excludedSites.includes(hostname)) {
-      excludedSites.push(hostname);
-      await chrome.storage.sync.set({ excludedSites });
+  async excludeSite(hostname) {
+    try {
+      const result = await chrome.storage.sync.get('excludedSites');
+      const excludedSites = result.excludedSites || [];
+      
+      if (!excludedSites.includes(hostname)) {
+        excludedSites.push(hostname);
+        await chrome.storage.sync.set({ excludedSites });
+      }
+      
+      console.log(`Excluded ${hostname} from error detection`);
+    } catch (error) {
+      console.error('Error excluding site:', error);
     }
-    
-    console.log(`Excluded ${hostname} from error detection`);
-  } catch (error) {
-    console.error('Error excluding site:', error);
   }
 }
-}
 
-// Add this at the top of your file, after SeismoToast class declaration
 const errorCache = new Map();
 const DEBOUNCE_TIME = 1000; // 1 second
 
@@ -327,10 +432,8 @@ function shouldShowError(url, statusCode) {
     return true;
 }
 
-// Initialize toast
 const seismoToast = new SeismoToast();
 
-// Analyze network error function remains the same
 function analyseNetworkError(request) {
     const { method, url, statusCode, timeStamp} = request.details;
 
@@ -370,12 +473,10 @@ function analyseNetworkError(request) {
     seismoToast.show(errCode, description, snipUrl, time, action);
 }
 
-// Listen for messages from the background script
 chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
   if (request.type === "NETWORK_ERROR") {
     console.log(request);
     analyseNetworkError(request);
   }
-  // Always return true if you want to use sendResponse asynchronously
   return true;
 });
