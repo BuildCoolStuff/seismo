@@ -24,3 +24,4 @@ package-lock.json
 .env
 .env.local
 Claude_Context.md
+v1.txt

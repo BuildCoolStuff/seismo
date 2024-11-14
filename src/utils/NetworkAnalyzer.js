@@ -27,7 +27,7 @@ export class NetworkAnalyzer {
             
             const response = this.formatResponse(request, responseHeaders);
 
-            this.toastManager.show(errCode, description, snipUrl, time, response);
+            this.toastManager.show(errCode, description, snipUrl, time, response, request.details);
         } catch (error) {
             Logger.error('Error analyzing network request', error);
         }

@@ -9,6 +9,7 @@ export class SeismoToast {
       this.containerId = DOM.CONTAINER_ID;
       this.icons = icons;  // Now using imported icons
       this.ensureInitialized();
+      this.retryRequests = new Map();
     }
   
     ensureInitialized() {
@@ -59,14 +60,14 @@ export class SeismoToast {
       }
   }
   
-    show(errCode, description, url, time, response) {
+    show(errCode, description, url, time, response, ogRequest) {
         try {
             this.ensureInitialized();
             
             const container = document.getElementById(this.containerId);
             if (!container) {
                 Logger.warn('Seismo: Container not ready, retrying...');
-                setTimeout(() => this.show(errCode, description, url, time, response), 100);
+                setTimeout(() => this.show(errCode, description, url, time, response, ogRequest), 100);
                 return;
             }
     
@@ -171,12 +172,22 @@ export class SeismoToast {
                 Logger.error('Failed to copy:', err);
               }
             });
+
+            // Store original request details
+            const requestId = `request_${time}`;
+            this.retryRequests.set(requestId, {
+              url: response.url,
+              method: ogRequest.method,
+              headers: ogRequest.requestHeaders || {},
+              body: ogRequest.requestBody
+          });
   
             // Add retry functionality
             const retryBtn = toast.querySelector('.seismo-btn[title="Retry Request"]');
-            retryBtn.addEventListener('click', () => {
-              this.showButtonSuccess(retryBtn, 'Retrying...');
-              window.location.reload();
+            retryBtn.setAttribute('data-request-id', requestId);
+            retryBtn.addEventListener('click', async () => {
+                this.showButtonSuccess(retryBtn, 'Retrying...');
+                await this.retryRequest(requestId);
             });
   
                   // Add exclude site functionality
@@ -258,7 +269,35 @@ export class SeismoToast {
           } catch (error) {
             Logger.error('Seismo: Error displaying toast notification', error);
         }
-      
+    }
+
+    async retryRequest(requestId) {
+      try {
+          const request = this.retryRequests.get(requestId);
+          if (!request) {
+              throw new Error('Request details not found');
+          }
+
+          const response = await fetch(request.url, {
+            method: request.method,
+            headers: request.headers,
+            body: request.body
+        });
+
+          if (!response.ok) {
+              throw new Error(`Request failed with status ${response.status}`);
+          }
+
+          // Success - remove toast
+          const toast = document.querySelector(`[data-request-id="${requestId}"]`).closest('.seismo-toast');
+          const container = document.getElementById(this.containerId);
+          this.removeToast(toast, container);
+          this.retryRequests.delete(requestId);
+
+          Logger.info('Request retry successful:', request.url);
+      } catch (error) {
+          Logger.error('Error retrying request:', error);
+      }
     }
   
     removeToast(toast, container) {
