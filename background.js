@@ -26,6 +26,37 @@ async function isExcluded(url) {
   }
 }
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'analyzeError') {
+      fetch(message.payload.url, {
+          method: 'POST',
+          headers: {
+              'X-Client-ID': message.payload.clientId,
+              'X-API-Key': 'dshu1wD1ocaiZbxeGdiCkyxvOFGd2GPlwK7lSn1fWn0=',
+          },
+          body: JSON.stringify({ 
+              type: message.payload.analysisType, 
+              hValue: message.payload.hValue,
+              error: message.payload.error 
+          })
+      })
+      .then(response => {
+          console.log('Response received:', response);
+          return response.json();
+      })
+      .then(data => {
+          console.log('Response data:', data);
+          sendResponse({ ok: true, analysis: data.analysis });
+      })
+      .catch(error => {
+          console.error('Error occurred:', error);
+          sendResponse({ ok: false, error: error.message });
+      });
+
+      return true; // Keep the message channel open for async response
+  }
+});
+
 // Intercept network errors
 chrome.webRequest.onCompleted.addListener(
   async (details) => {

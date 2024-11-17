@@ -3,29 +3,74 @@ import { Groq } from 'groq-sdk';
 
 export default {
   async fetch(request, env) {
+
+    //CORS headers
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'OPTIONS, POST',
+      'Access-Control-Allow-Headers': 'X-API-Key, X-Client-ID',
+      'Access-Control-Max-Age': '86400', //How long can the response be cached
+      'Access-Control-Allow-Credentials': 'true',
+    };
+
+    // Handle preflight requests
+    if (request.method === 'OPTIONS') {
+
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders
+      });
+    }
+
     // Only allow POST requests
     if (request.method !== 'POST') {
-      return new Response('Method not allowed', { status: 405 });
+      return new Response(JSON.stringify({ analysis: "Method not Allowed. Don't mess with the extension." }), { 
+        status: 405,
+        headers: corsHeaders
+      });
     }
 
     try {
+      // Check for API key
+      const apiKey = request.headers.get('X-API-Key');
+      // console.log('API Key:', apiKey);
+      // console.log('Expected API Key:', env.EXTENSION_API_KEY);
+      if (!apiKey || apiKey !== env.EXTENSION_API_KEY) {
+        return new Response(JSON.stringify({ analysis: "Unauthorized" }), { 
+          status: 401,
+          headers: corsHeaders
+        });
+      }
+
       const clientId = request.headers.get('X-Client-ID');
-      const { type, error } = await request.json();
-      const errorHash = await hashError(error);
+      const { type, hValue, error } = await request.json();
+      const errorHash = await hashError(hValue);
 
       // Check cache
       const cachedAnalysis = await env.SEISMO_STORE.get(`cache_${errorHash}`);
       if (cachedAnalysis) {
-        return new Response(cachedAnalysis, {
-          headers: { 'Content-Type': 'application/json' }
-        });
+        try {
+          // Try to parse the cached analysis
+          const parsedAnalysis = JSON.parse(cachedAnalysis);
+          return new Response(JSON.stringify({ analysis: parsedAnalysis }), {
+            headers: corsHeaders
+          });
+        } catch (parseError) {
+          // If parsing fails, continue with getting a new analysis
+          console.error('Cache parse error:', parseError);
+        }
       }
 
       // Rate limiting for deep analysis
       if (type === 'deep') {
         const lastRequest = await env.SEISMO_STORE.get(`rate_${clientId}`);
         if (lastRequest && (Date.now() - parseInt(lastRequest)) < 60000) {
-          return new Response('Rate limit exceeded', { status: 429 });
+          return new Response(JSON.stringify({ 
+            analysis: "You hit the Rate Limit. Please wait for sometime"
+          }), { 
+            status: 429,
+            headers: corsHeaders
+          });
         }
       }
 
@@ -45,11 +90,18 @@ export default {
       });
 
       return new Response(JSON.stringify({ analysis }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+          headers: corsHeaders
+        }
+      );
 
     } catch (err) {
-      return new Response('Error', { status: 500 });
+      return new Response(JSON.stringify({ 
+        analysis: "Error",
+        error: err.message || 'Unknown error'
+      }), {
+        headers: corsHeaders,
+        status: 500
+      });
     }
   }
 };

@@ -26,3 +26,4 @@ package-lock.json
 Claude_Context.md
 v1.txt
 seismo-api/secrets.json
+seismo-api/wrangler.toml

@@ -20,3 +20,5 @@ For production deployment, make sure to set up your secrets in the Cloudflare da
 wrangler secret put GEMINI_KEY
 wrangler secret put GROQ_KEY
 ```
+
+You also need to setup Wrangler.toml with a KV.
